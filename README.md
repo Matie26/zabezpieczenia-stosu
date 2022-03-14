@@ -1,7 +1,6 @@
-## <p align=center> Badanie rozwiązań chroniących natywne aplikacje działające w trybie użytkownika </p>
+# <p align=center> Badanie rozwiązań chroniących natywne aplikacje działające w trybie użytkownika </p>
 
-
-#### Spis treści 
+## Spis treści 
 
 1. [Wstęp](#wstep)
 2. [Kanarki stosu](#kanarki)
@@ -22,12 +21,12 @@
 
 &nbsp; &nbsp; &nbsp;
 
-### Wstęp <a name="wstep"></a>
+## Wstęp <a name="wstep"></a>
 W 1996 roku w magazynie Phrack ukazał się artykuł "Smashing The Stack From Fun and Profit", w którym przedstawione zostały podstawy eksploitacji binarnej. W tym artykule nie zostało odkryte nic nowego, a mimo to okazał się on punktem przełomowym, ponieważ pokazał on ludziom, jak łatwa była wtedy eklsploitacja binarna i jakie można było za jej pomocą odnieść korzyści. Spowodowało to dużo większe zainteresowanie tematem, które poskutkowało znacznym wzrostem eksploitacji takich podatności. Od tego momentu rozpoczął się wyścig zbrojeń pomiędzy atakującymi, a projektantami zabezpieczeń. Efektem tych działań jest zarówno wiele ataków na skalę światową takich jak *Morris Worm (1998)*, *Code Red (2001)*, *SQL Slammer Worm (2003)*, jak i powstanie szerokiej gamy zabezpieczeń ("utrudniaczy") przed przepełnieniami bufora. Można do nich zaliczyć między innymi kanarki stosu, ASLR oraz PIE i w to właśnie te zabezpieczenia opiszę w tym tekście.
 
 <div style="page-break-after: always;"></div>
 
-### Kanarki stosu <a name="kanarki"></a>
+## Kanarki stosu <a name="kanarki"></a>
 Kanarki stosu (ang. *stack canaries*)  są jednym ze sposobów zapobiegania atakom bazującym na przepełnieniu bufora. Bez wchodzenia w szczegóły i różnice pomiędzy implementacjami, kanarek stosu jest to pewna wartość umieszczana przez kompilator na stosie pomiędzy buforem a wskaźnikiem ramki stosu `SFP`. Później wartość kanarka jest porównywana z oryginalną i jeśli została zmieniona, to program kończy swoje działanie. Na schemacie poniżej widać, że gdyby atakujący chciał nadpisać na przykład adres powrotny funkcji `RET`, to po drodze również nadpisze i (najprawdopodobniej) zmieni wartość kanarka, co zostanie wykryte zaraz przed powrotem funkcji. W takim wypadku działanie programu zostanie zatrzymane, a co za tym idzie nie zostaną wykonane instrukcje, na które wskazywał nadpisany `RET`. 
 
 ```
@@ -36,7 +35,7 @@ Kanarki stosu (ang. *stack canaries*)  są jednym ze sposobów zapobiegania atak
 ---+------------+------------+------------+------------+------------+---
 ```
 
-##### Rodzaje kanarków <a name="rodzaje_kanarkow"></a>
+### Rodzaje kanarków <a name="rodzaje_kanarkow"></a>
 
 Daje się wyróżnić cztery kategorie kanarków:
 
@@ -51,7 +50,7 @@ Daje się wyróżnić cztery kategorie kanarków:
   
 - **Null Canary**
   Jest to najprostsza implementacja tego zabezpieczenia, w której kanarek jest po prostu ciągiem 4 lub 8 null bajtów. Podobnie jak poprzedni typ ma to na celu utrudnić ataki manipulujące ciągami znaków. 
-##### Implementacja w kompilatorach (gcc i clang) <a name="implementacja_kanarkow"></a>
+### Implementacja w kompilatorach (gcc i clang) <a name="implementacja_kanarkow"></a>
 
 Kanarki stosu zostały po raz pierwszy przedstawione przez gcc w 1998 r. jako część narzędzia *StackGuard*. Oryginalnie polegało to na umieszczeniu losowej liczby (random canary) na stosie przed adresem powrotu funkcji. Projekt zaczął się rozwijać i wkrótce dodano do niego również *random xor canaries* oraz *terminator canaries*. Kolejną istotną zmianą było przeniesienie kanarka przed wskaźnik ramki stosu oraz wprowadzenie nowego układu zmiennych na stosie, tak aby zmienne lokalne i wskaźniki znajdowały się przed buforem. Dzięki temu przepełnienie bufora było od razu wykrywane nie narażając integralności zmiennych lokalnych.     
 
@@ -65,7 +64,7 @@ W trakcie kompilacji można zastosować różne tryby zabezpieczania stosu:
 - `-fstack-protector-explicit` - Tak jak `-fstack-protector`, ale dodaje kanarki tylko do funkcji zaznaczonych  atrybutem `stack_protect`.
 - `-fno-stack-protector` - wyłączenie zabezpieczenia
 
-##### Zastosowanie  w praktyce <a name="zastosowanie_kanarkow"></a>
+### Zastosowanie  w praktyce <a name="zastosowanie_kanarkow"></a>
 
 W celu prezentacji działania kanarków stosu napisałem prosty program w C. Jak widać poniżej, zastosowana została podatna funkcja `gets`, która nie sprawdza długości wczytywanego ciągu znaków. W kodzie dodatkowo umieściłem zmienną `some_variable` oraz funkcję `malicious`. Poniższy kod skompilowałem w dwóch wersjach za pomocą gcc w wersji 10.2.0. Za pierwszym razem z flagą `-fno-stack-protector`, a potem z `-fstack-protector` w celu dodania kanarków stosu. Moim zadaniem będzie napisanie takiego eksploita, aby nadpisać wartość zmiennej `some_variable` oraz wykonać funkcję `malicious`. 
 
@@ -142,9 +141,9 @@ Na poniższym wydruku widać fragment stosu przed i po wywołaniu funkcji `gets`
 0x7fffffffdfe0:	0x0000000000000000	0x0000000000000000 #  |
 0x7fffffffdff0:	0x00000000004011c0	0x0000000000401070 # -|
 0x7fffffffe000:	0x00007fffffffe100	0x0000000700000000 #
-#                                     ^^^^^^^^ <- some_variable (4 bajty)
+#                                         ^^^^^^^^ <- some_variable (4 bajty)
 0x7fffffffe010:	0x00000000004011c0	0x00007ffff7df3cb2
-#        SFP -> ^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^ <- RET
+#        SFP -> ^^^^^^^^^^^^^^^^^^      ^^^^^^^^^^^^^^^^^^ <- RET
 
 Breakpoint 1, 0x0000000000401193 in main ()
 (gdb) c
@@ -156,9 +155,9 @@ Continuing.
 0x7fffffffdfe0:	0x4141414141414141	0x4141414141414141 #  |
 0x7fffffffdff0:	0x4141414141414141	0x4141414141414141 # -|
 0x7fffffffe000:	0x4242424242424242	0x4343434342424242 
-#                                     ^^^^^^^^ <- some_variable (4 bajty)
+#                                         ^^^^^^^^ <- some_variable (4 bajty)
 0x7fffffffe010:	0x4444444444444444	0x0000000000401156 #
-#        SFP -> ^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^ <- RET
+#        SFP -> ^^^^^^^^^^^^^^^^^^      ^^^^^^^^^^^^^^^^^^ <- RET
 
 Breakpoint 2, 0x0000000000401198 in main ()
 ```
@@ -175,15 +174,15 @@ Teraz spróbuję osiągnąć ten sam efekt stosując eksploit na programie skomp
 => 0x4011c7 <main+58>:	mov    -0x54(%rbp),%eax
 0x7fffffffdfa0:	0x00007fffffffe108	0x0000000100000000 
 0x7fffffffdfb0:	0x0000000000f0b5ff	0x00000007000000c2  
-#                                     ^^^^^^^^ <- some_variable (4 bajty)  
+#                                         ^^^^^^^^ <- some_variable (4 bajty)  
 0x7fffffffdfc0:	0x4141414141414141	0x4141414141414141 # -|
 0x7fffffffdfd0:	0x4141414141414141	0x4141414141414141 #  | bufor
 0x7fffffffdfe0:	0x4141414141414141	0x4141414141414141 #  |
 0x7fffffffdff0:	0x4141414141414141	0x4141414141414141 # -|
 0x7fffffffe000:	0x00007fffffffe100	0xd648704df8fd3c00    
-#                                   ^^^^^^^^^^^^^^^^^^ <- kanarek!
+#                                       ^^^^^^^^^^^^^^^^^^ <- kanarek!
 0x7fffffffe010:	0x0000000000401200	0x00007ffff7df3cb2   
-#        SFP -> ^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^ <- RET
+#        SFP -> ^^^^^^^^^^^^^^^^^^      ^^^^^^^^^^^^^^^^^^ <- RET
 ```
 
 </font>
@@ -231,15 +230,15 @@ Podobnie jak w poprzednim przykładzie, dla formalności, można wyświetlić in
 => 0x4011c2 <main+53>:	callq  0x401080 <gets@plt>
 0x7fffffffdfa0:	0x00007fffffffe108	0x0000000100000000
 0x7fffffffdfb0:	0x0000000000f0b5ff	0x00000007000000c2
-#                                     ^^^^^^^^ <- some_variable (4 bajty)
+#                                         ^^^^^^^^ <- some_variable (4 bajty)
 0x7fffffffdfc0:	0x00007fffffffdfe7	0x00007ffff7e83b4c # -|
 0x7fffffffdfd0:	0x00007fffffffe030	0x000000000040124d #  | bufor
 0x7fffffffdfe0:	0x0000000000000000	0x0000000000000000 #  | 
 0x7fffffffdff0:	0x0000000000401200	0x0000000000401090 # -|
 0x7fffffffe000:	0x00007fffffffe100	0xe717fbbcfc461a00
-#                                   ^^^^^^^^^^^^^^^^^^ <- kanarek
+#                                       ^^^^^^^^^^^^^^^^^^ <- kanarek
 0x7fffffffe010:	0x0000000000401200	0x00007ffff7df3cb2
-#        SFP -> ^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^ <- RET
+#        SFP -> ^^^^^^^^^^^^^^^^^^      ^^^^^^^^^^^^^^^^^^ <- RET
 
 Breakpoint 1, 0x00000000004011c2 in main ()
 (gdb) c
@@ -247,15 +246,15 @@ Continuing.
 => 0x4011c7 <main+58>:	mov    -0x54(%rbp),%eax
 0x7fffffffdfa0:	0x00007fffffffe108	0x0000000100000000
 0x7fffffffdfb0:	0x0000000000f0b5ff	0x00000007000000c2
-#                                     ^^^^^^^^ <- some_variable (4 bajty)
+#                                         ^^^^^^^^ <- some_variable (4 bajty)
 0x7fffffffdfc0:	0x4141414141414141	0x4141414141414141 # -|
 0x7fffffffdfd0:	0x4141414141414141	0x4141414141414141 #  | bufor
 0x7fffffffdfe0:	0x4141414141414141	0x4141414141414141 #  |
 0x7fffffffdff0:	0x4141414141414141	0x4141414141414141 # -|
 0x7fffffffe000:	0x4242424242424242	0x4545454545454545
-#                                   ^^^^^^^^^^^^^^^^^^ <- kanarek!
+#                                       ^^^^^^^^^^^^^^^^^^ <- kanarek!
 0x7fffffffe010:	0x4444444444444444	0x0000000000401176
-#        SFP -> ^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^ <- RET
+#        SFP -> ^^^^^^^^^^^^^^^^^^      ^^^^^^^^^^^^^^^^^^ <- RET
 
 Breakpoint 2, 0x00000000004011c7 in main ()
 ```
@@ -299,18 +298,18 @@ Na koniec warto zobaczyć różnice w funkcji dezasemblowanej funkcji `main` oby
 
 </font>
 
-##### Wady i zalety <a name="wady_zalety_kanarki"></a>
+### Wady i zalety <a name="wady_zalety_kanarki"></a>
 
 Kanarki stosu nie są rozwiązaniem na wszystkie problemy, ale na pewno potrafią zminimalizować skutki klasycznego przepełnienia bufora i ze względu na prostą implementację oraz mały wpływ na wydajność programu, nie ma powodu, aby ich nie dodawać. Dodatkową zaletą kanarków jest fakt, że wykrywają one próbę ataku i dzięki temu można, w jakiś sposób, zareagować. Nie można jednak korzystać z podatnych funkcji i polegać na tym, że kanarki zabezpieczą program, ponieważ jest wiele sposobów na ich obejście. Przykładowo jeśli atakujący doprowadzi do sytuacji, w której może czytać pamięć, to odnalezienie wartości kanarka nie stanowi żadnego problemu. Kolejnym sposobem na przełamanie tego zabezpieczenia jest, po prostu, znalezienie kanarka dzięki atakowi brute force (szczególnie na 32-bitowych systemach). Jest to możliwe, ponieważ w przypadku "*forkowania*" programu dzieci mają taki sam kanarek jak rodzic, a taka sytuacja jest często spotykana w aplikacjach sieciowych. 
 
 <div style="page-break-after: always;"></div>
 
 
-### ASLR  <a name="aslr"></a>
+## ASLR  <a name="aslr"></a>
 
 ASLR, czyli *Address Space Layout Randomization* jest techniką zabezpieczania systemu przed eksploitacją podatności związanych z manipulacją pamięcią. Zabezpieczenie to polega na losowaniu w pamięci miejsca do ulokowania procesu, a następnie losowego rozmieszczania bibliotek, sterty oraz stosu wewnątrz przestrzenie adresowej procesu. Takie rozwiązanie znacznie utrudnia atakującemu skakanie do wybranych miejsc w pamięci procesu, ponieważ adresy będą się zmieniały co wykonanie programu. 
 
-##### Linux a Windows <a name="linux_windows"></a>
+### Linux a Windows <a name="linux_windows"></a>
 
 ASLR pojawił się po raz pierwszy na Linuxie w 2005 roku,  a w 2014 roku dołączył do niego KASLR  - czyli wersja ASLR dla jądra systemu Linux. Na Windowsy ASLR zawitał razem z Windows Vista w 2007 roku. Na obydwu systemach zadanie ASLR jest takie samo, lecz różnice w implementacji są dość znaczące. Problem implementacji ASLR  na Windowsach wywodzi się z tego, że pliki DLL (*Dynamic-Link Library*) nie obsługują PIC (*Position-independent Code*), więc muszą być umieszczone w tym samym miejscu, aby mogły być wykorzystane przez różne procesy. Przez to dopuszczalna jest sytuacja, w której instancje jakiegoś programu zostają umieszczone w tym samym miejscu dla dwóch różnych procesów.  Może to prowadzić do sytuacji, w których można poprzez podatność w jednym programie znaleźć adres interesującej funkcji, a w drugim programie podatnym na przykład na przepełnienie bufora, skoczyć do poznanego adresu. Również, jeśli proces ładuje plik DLL, który był niedawno wykorzystany, to możliwe, że zostanie mu przydzielony ten sam adres co wcześniej. Dopiero ponowne uruchomienie systemu (zabicie wszystkich procesów korzystających z danego pliku DLL) gwarantuje uzyskanie nowego losowego adresu. Dlatego aplikacje restartujące się po wykryciu błędu są podatne na ataki brute force. Powyższe problemy nie występują na Linuxach, ponieważ biblioteki wspierają PIC. 
 
@@ -326,7 +325,7 @@ Na Linuxach ASLR można ustawić poleceniem `sysctl -w kernel.randomize_va_space
 
 </font>
 
-##### Zastosowanie w praktyce <a name="zastosowanie_aslr"></a>
+#### Zastosowanie w praktyce <a name="zastosowanie_aslr"></a>
 
 W celu zaprezentowania działania ASLR przygotowałem podatny program napisany w języku C, który dla ułatwienia prezentacji skompilowałem bez żadnych zabezpieczeń. Podatność ponownie polega na zastosowaniu funkcji `gets`.
 
@@ -476,17 +475,17 @@ Segmentation fault (core dumped)
 
 </font>
 
-##### Wady i zalety <a name="wady_zalety_aslr"></a>
+### Wady i zalety <a name="wady_zalety_aslr"></a>
 
 ASLR stał się już standardem w tych czasach i nie ma powodów, aby z niego rezygnować. Nie jest to oczywiście zaawansowane zabezpieczenie przed eksploitacją binarną, a jedynie prosta w swoim działaniu technika mająca na celu utrudnienie ataku. Należy jednak pamiętać, że sam w sobie ASLR nie jest wystarczający, ponieważ jest podatny na takie ataki jak return-to-plt, nadpisanie `GOT` lub po prostu brute force. Z ASLR można uzyskać dodatkowe korzyści, gdy używa się programów obsługujących PIE.
 
 <div style="page-break-after: always;"></div>  
 
-### PIE <a name="pie"></a>
+## PIE <a name="pie"></a>
 
 PIE, czyli *Position-Independent Executable*, jest kolejnym sposobem na utrudnienie eksploitacji pamięci. W dużym uproszczeniu można powiedzieć, że jest to dodatkowe usprawnienie do ASLR. Nie jest to jednak do końca prawda, ponieważ PIE odnosi się do pojedynczego pliku wykonywalnego i jest opcją kompilatora, a nie jak ASLR zabezpieczeniem systemowym. Program skompilowany z obsługą PIE wyróżnia się tym, że w jego kodzie (asemblera) nie występują odwołania do funkcji lub zmiennych poprzez bezwzględne adresy. Jest to możliwe dzięki zastosowaniu adresacji względem `IP` (*instruction pointer*), czyli od miejsca, w którym aktualnie wykonywany jest kod. Taki sposób adresacji pozwala na uruchomienie kodu w dowolnym miejscu w pamięci. Jest to ogromna zaleta, ponieważ dzięki temu ASLR może randomizować adresy nie tylko dla stosu, sterty i bibliotek, ale również dla sekcji kodu oraz `PLT` (*Procedure Linkage Table*).
 
-##### Implementacja na architekturach x32 i x64 <a name="implementacja_architektury"></a>
+### Implementacja na architekturach x32 i x64 <a name="implementacja_architektury"></a>
 
 Pomimo tych samych założeń, implementacja PIE jednak lekko od siebie odbiega na tych dwóch architekturach. W obydwu przypadkach proces adresacji zachodzi w momencie linkowania programu. Natomiast różnice wywodzą się z tego, że procesory 32-bitowe nie były zaprojektowane z myślą o takim sposobie adresacji, przez co odniesienia do danych wymagają bezwzględnych adresów (np. `mov`) oraz nie ma gotowego sposobu na szybkie odczytanie wartości wskaźnika instrukcji, który jest potrzebny do wyliczenia bezwzględnego adresu. Dlatego, w tym celu, stosuje się funkcję pomocniczą, której jedynym zadaniem jest skopiowanie pierwszej wartości ze stosu do rejestru. Tym sposobem, w momencie wywołania tej funkcji, na stosie zostaje zapisany adres powrotu, który następnie zostaje przez funkcję skopiowany do wybranego rejestru. Takie rozwiązanie jest obarczone dodatkowymi instrukcjami dla procesora oraz zarezerwowaniem rejestru, który w przypadku złożonych programów mógłby być kluczowy. Sytuacja prezentuje się lepiej na procesorach 64-bitowych, ponieważ tam zaimplementowano już "*RIP-relative addressing mode*", dzięki któremu wszystkie odniesienia bazują już na adresacji względem `rip`.
 
@@ -520,14 +519,14 @@ Dump of assembler code for function main:  # PIE
    0x5656e1e1 <+28>: ret                                            |
                                                                     |
 Dump of assembler code for function __x86.get_pc_thunk.ax:          |
-   0x0000124a <+0>:	mov    eax,DWORD PTR [esp]             <--------'
+   0x0000124a <+0>:	mov    eax,DWORD PTR [esp]          <--------
    0x0000124d <+3>:	ret    
    0x0000124e <+4>:	xchg   ax,ax
 ```
 
 </font>
 
-##### Implementacja w kompilatorach (gcc i clang) <a name="kompilatory_pie"></a>
+### Implementacja w kompilatorach (gcc i clang) <a name="kompilatory_pie"></a>
 
 Z racji na kompatybilność, nie ma różnic w kompilowaniu programów PIE na kompilatorach gcc i clang. Poniższe informacje odnoszą się do obydwu kompilatorów.   
 
@@ -537,7 +536,7 @@ W trakcie kompilacji użytkownik ma do wyboru:
 - `-fPIE` - kompilowanie do PIE, nieograniczona sekcja `GOT`
 - `-fno-pie, -fno-PIE` - wyłączenie kompilacji do PIE
 
-##### Zastosowanie  w praktyce <a name="zastosowanie_pie"></a>
+### Zastosowanie  w praktyce <a name="zastosowanie_pie"></a>
 
 Ponieważ prezentacja PIE bez włączonego ASLR nie miałaby zbytnio sensu, to zacznę od eksploatacji programu skompilowanego bez obsługi PIE, lecz z włączonym w systemie ASLR. Dodatkowym utrudnieniem jest to, że program został skompilowany na procesory 64-bitowe, czyli argumenty do funkcji przekazywane są za pomocą rejestrów. W celu eksploitacji tego programu zastosuję, wcześniej wspomniany, atak return-to-plt (w połączeniu z return-to-libc) i będzie on polegał na wykorzystaniu sekcji PLT, jako punktu odniesienia, dzięki któremu będzie można wyliczyć adres biblioteki libc. 
 
@@ -716,10 +715,10 @@ Teraz to samo, ale z programem skompilowanym jako PIE.
 
 </font>
 
-##### Wady i zalety <a name="wady_zalety_pie"></a>
+### Wady i zalety <a name="wady_zalety_pie"></a>
 
 Programy skompilowane jako Position-Independent Executable są trudniejsze do eksploitacji niektórymi metodami. Jest to jednak obarczone pewnym kosztem - wydajnością. Ten temat poruszył  Mathias Payer w publikacji "Too much PIE is bad for performance". O ile na architekturach 64-bitowych mowa jest o spowolnieniu działania programu silnie polegającego na CPU jedynie o około 3%, to na 32-bitach nie wygląda to już tak dobrze. Tam dla programów silnie polegających na CPU, wydajność spada  średnio o 10%, a w szczególnych przypadkach może dochodzić do 25%. Takie wartości skłaniają do refleksji, czy aby na pewno warto każdy program na 32-bitowej architekturze kompilować jako PIE.
 
-### Wnioski <a name="wnioski"></a>
+## Wnioski <a name="wnioski"></a>
 
 Jak pokazały wcześniejsze przykłady nie ma uniwersalnego zabezpieczenia przed atakami polegającymi na przepełnieniu bufora. Każde rozwiązanie zabezpiecza tylko jakąś część programu lub jedynie utrudnia atak. Najlepsze rezultaty dla bezpieczeństwa uzyskuje się przy połączeniu dużej ilości zabezpieczeń, tak aby mogły się uzupełniać. Należy jednak znać ich słabe strony i mieć świadomość, że nie są one rozwiązaniem na poprawianie błędów programisty - na przykład takich jak używanie niebezpiecznych funkcji.
